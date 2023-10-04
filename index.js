@@ -43,7 +43,7 @@ app.post("/", (req, res) => {
     const query =
       "INSERT INTO urls (title,url,rating) VALUES ($1, $2, $3) RETURNING id"; // notice how we returned id
 
-    client.query(query, [newVideo.title, newVideo.url, 0], (error, results) => {
+    pool.query(query, [newVideo.title, newVideo.url, 0], (error, results) => {
       if (error) {
         throw error;
       }
@@ -56,7 +56,7 @@ app.post("/", (req, res) => {
 // GET "/{id}"
 app.get("/:id", (req, res) => {
   const id = parseInt(req.params.id);
-  client
+  pool
     .query("SELECT * FROM urls WHERE id=$1", [id])
     .then((result) => res.json(result.rows[0]))
     .catch((error) => {
@@ -72,7 +72,7 @@ app.get("/:id", (req, res) => {
 // DELETE "/{id}"
 app.delete("/:id", (req, res) => {
   const id = parseInt(req.params.id); // notice it as the req.params.id is originally a string
-  client
+  pool
     .query("DELETE FROM urls WHERE id=$1", [id])
     .then(() => res.send(`Video ${id} deleted!`))
     .catch((error) => {
