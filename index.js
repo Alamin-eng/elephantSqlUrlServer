@@ -2,20 +2,20 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const env = require("dotenv");
-const Pool = require("pg-pool");
+const { Pool }= require("pg");
 
 app.use(cors());
 env.config();
 
-// const data = ["apple", "orage","banana", `${process.env.MANGO}`];
+
 const config = {
   connectionString: process.env.DB_URL,
   ssl: {
     rejectUnauthorized: false,
   },
 };
-const pool = new Pool(config);
 
+const pool = new Pool(config);
 
 // get method
 app.get("/", async (req, res) => {
@@ -34,6 +34,7 @@ app.get("/", async (req, res) => {
 
 // Post method 
 app.post("/", (req, res) => {
+  pool.connect();
   // Delete this line after you've confirmed your server is running
   const newVideo = req.body;
 
@@ -43,13 +44,11 @@ app.post("/", (req, res) => {
     const query =
       "INSERT INTO urls (title,url,rating) VALUES ($1, $2, $3) RETURNING id"; // notice how we returned id
 
-    pool.query(query, [newVideo.title, newVideo.url, 0], (error, results) => {
-      if (error) {
-        throw error;
-      }
+    pool.query(query, [newVideo.title, newVideo.url, 0], (results) => {
       console.log(results.rows);
       res.status(200).send(results.rows[0]);
     });
+    pool.release();
   }
 });
 
@@ -70,15 +69,19 @@ app.get("/:id", (req, res) => {
 });
 
 // DELETE "/{id}"
-app.delete("/:id", (req, res) => {
-  const id = parseInt(req.params.id); // notice it as the req.params.id is originally a string
-  pool
-    .query("DELETE FROM urls WHERE id=$1", [id])
-    .then(() => res.send(`Video ${id} deleted!`))
-    .catch((error) => {
-      console.error(error);
-      res.status(500).json(error);
-    });
+app.delete("/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  console.log(typeof id);
+  const client = await pool.connect();
+  try {
+    await client.query("DELETE FROM urls WHERE id = $1", [id]);
+    res.status(200).send(`Item with ID ${id} has been deleted`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error deleting item");
+  } finally {
+    client.release();
+  }
    
 });
 
